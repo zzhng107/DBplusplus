@@ -29,10 +29,11 @@ def _parse():
 	condition = input("WHERE ")
 
 	attrib = attrib.replace(" ", "")
-	table = table.replace(" ", "")
+	#table = table.replace(" ", "")
 
 	list_select = []
 	list_from = []
+	rename_list = []
 	list_where = condition
 
 	if attrib == "*":
@@ -44,22 +45,43 @@ def _parse():
 	else:
 		list_select = attrib.split(",")
 
+
+
+	print("Fuck")
 	if table == "":
 		return
 
 	elif table.find(",") == -1:
-		list_from.append(table)
+		temp = table.split(" ")
+		print(temp)
+		if len(temp) == 2: 
+			list_from.append(temp[0])
+			rename_list.append(temp[1])
+		else:
+			list_from.append(temp[0])
+			rename_list.append(None)
 
 	else:
-		list_from = table.split(",")
+		ttemp = table.split(", ")
+		print(ttemp)
+		for i in ttemp: 
+			temp = i.split(" ")
+			if len(temp) == 2: 
+				list_from.append(temp[0])
+				rename_list.append(temp[1])
+			else:
+				list_from.append(temp[0])
+				rename_list.append(None)
 	
-	return list_select, list_from, list_where 
+	print(list_from)
+	print(rename_list)
+	return list_select, list_from, list_where, rename_list
 
 def _get_table_list():
 	out = []
 	for fn in os.listdir(path):
 		out.append(fn)
-		return out
+	return out
 
 def _read_dataset(table_lst):
 	real_table_list = []
@@ -82,7 +104,7 @@ def _select_used_tables(from_lst, after_read_lst, table_names):
 			count += 1
 	return out
 
-def _from(table_lst, after_read_lst, args):
+def _from(table_lst, after_read_lst, args, rename_list):
 	conds = _where_parse(args)
 
 	attr_all = []
@@ -93,17 +115,18 @@ def _from(table_lst, after_read_lst, args):
 	if len(table_lst) == 1:
 
 		table1 = after_read_lst[0]
+		if rename_list[0] is not None: 
+			table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
 		return table1
 
-
 	table1 = after_read_lst[0]
-
-	
 	attr1 = list(table1.columns.values)
 	for i in range(len(conds)):
 
 		if ((conds[i][0] in attr1) and (conds[i][2] in attr1)) or ((conds[i][0] in attr1) and (conds[i][2] not in attr_all)):
 			table1 = table1[generate_result(table1, [conds[i]])]
+	if rename_list[0] is not None: 
+		table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
 
 	table2 = after_read_lst[1]
 	
@@ -111,7 +134,8 @@ def _from(table_lst, after_read_lst, args):
 	for i in range(len(conds)):
 		if ((conds[i][0] in attr2) and (conds[i][2] in attr2)) or ((conds[i][0] in attr2) and (conds[i][2] not in attr_all)):
 			table2 = table2[generate_result(table2, [conds[i]])]
-	
+	if rename_list[1] is not None: 
+		table2.columns = [rename_list[1] +'.' + s for s in list(table2.columns.values)]	
 
 	table1['key'] = 0
 	table2['key'] = 0
@@ -127,6 +151,8 @@ def _from(table_lst, after_read_lst, args):
 		for i in range(len(conds)):
 			if ((conds[i][0] in attr1) and (conds[i][2] in attr)) or ((conds[i][0] in attr) and (conds[i][2] not in attr_all)):
 				table = table[generate_result(table, [conds[i]])]
+			if rename_list[i+2] is not None: 
+				table.columns = [rename_list[i+2] +'.' + s for s in list(table.columns.values)]
 
 		prod['key'] = 0
 		table['key'] = 0
@@ -136,73 +162,31 @@ def _from(table_lst, after_read_lst, args):
 
 	return prod 
 
-"""
-def operatorLIKE(table, substring):
-	ret = []
-	for i in range(len(data)):
-		if substring[0]== '%' and substring[-1] == '%':
-			if re.search(substring[1:-1], data[i]):
-				ret.append(i)
-		elif substring[0] == '_' and substring[-1] == '_':
-			if re.search("^." + substring[1:-1] + ".$", data[i]):
-				ret.append(i)
-		elif substring[0] == '%' and substring[-1] =='_':
-			if re.search(substring[1:-1] + ".$", data[i]):
-				ret.append(i)
-		elif substring[0] == '_' and substring[-1] == '%':
-			if re.search("^." + substring[1:-1], data[i]):
-				ret.append(i)
-		elif substring[0] != '_' and substring[0] != '%' and substring[-1] == '_':
-			if re.search("^"+ substring[0:-1] + ".$", data[i]):
-				ret.append(i)
-		elif substring[0] != '_' and substring[0] != '%' and substring[-1] == '%':
-			if re.search("^" + substring[0:-1], data[i]):
-				ret.append(i)
-		elif substring[-1] != '_' and substring[-1] != '%' and substring[0] == '_':
-			if re.search("^."+ substring[1:] + "$", data[i]):
-				ret.append(i)
-		elif substring[-1] != '_' and substring[-1] != '%' and substring[0] == '%':
-			if re.search(substring[1:] + "$", data[i]):
-				ret.append(i)
-		else:
-			print("Invalid arguments, please specify qualifiers")
-			return []
-	return ret 
-"""
-
-def operatorLIKE(op, pattern):
-	# %or% have "or" in any position
-	if pattern[0] == '%' and pattern[-1] == '%':
-		return op.find(pattern) >= 0
-	# %a start with a
-	elif pattern[0] != '%' and pattern[-1] == '%':
-		return op.startswith(pattern[:-1])
-	# %a end with a
-	elif pattern[0] == '%' and pattern[-1] != '%':
-		return op.endswith(pattern[1:])
-	# '_r% have "r" in the second position
-	elif pattern[0] == '_' and pattern[-1] == '%':
-		return op.find(pattern) == 1
-	# '%r_ have "r" in the last second position
-	elif pattern[0] == '%' and pattern[-1] == '_':
-		return op.find(pattern) == -1 - len(pattern[1:-1])
-	# '_r_ have "r" in the middle with 2 single char at the end
-	elif pattern[0] == '_' and pattern[-1] == '_':
-		return op[1:-1] == pattern[1:-1]
 
 
-
-"""
-def _select_and_where(table, args, select_lst):
-	conds = _where_parse(args)
-	print(conds)
-	new =  table[generate_result(table, conds)]
-
-	if (select_lst[0] == "*"):
-		return new
+def operatorLIKE(table,col, substring):
+	if substring[0]== '%' and substring[-1] == '%':
+		return table[col].str.contains(substring[1:-1], na = False)
+	elif substring[0] == '_' and substring[-1] == '_':
+		return table[col].str.contains("^." + substring[1:-1] + ".$", na = False)
+	elif substring[0] == '%' and substring[-1] =='_':
+		return table[col].str.contains(substring[1:-1] + ".$", na = False)
+	elif substring[0] == '_' and substring[-1] == '%':
+		return table[col].str.contains("^." + substring[1:-1], na = False)
+	elif substring[0] != '_' and substring[0] != '%' and substring[-1] == '_':
+		return table[col].str.contains("^"+ substring[0:-1] + ".$", na = False)
+	elif substring[0] != '_' and substring[0] != '%' and substring[-1] == '%':
+		return table[col].str.contains("^" + substring[0:-1], na = False)
+	elif substring[-1] != '_' and substring[-1] != '%' and substring[0] == '_':
+		return table[col].str.contains("^."+ substring[1:] + "$", na = False)
+	elif substring[-1] != '_' and substring[-1] != '%' and substring[0] == '%':
+		return table[col].str.contains(substring[1:] + "$", na = False)
 	else:
-		return new[select_lst]
-"""
+		print("Invalid arguments, please specify qualifiers")
+		return []
+	return ret 
+
+
 
 def generate_result(table, conds):
 	next_logic_op = ""
@@ -301,7 +285,7 @@ def operators(table, op1, op2, op):
 	elif op == ">":
 		return table[op1] > op2
 	elif op == "LIKE":
-		return operatorLIKE(op1, op2)
+		return operatorLIKE(table, op1, op2)
 
 
 
@@ -310,16 +294,18 @@ after_read_lst, table_names = _read_dataset(data_table_lst)
 
 while(1):
 
-	select_lst, from_lst, where_lst = _parse()
+	select_lst, from_lst, where_lst, rename_list = _parse()
 
 	start_time = time.time()
 
 	after_read_lst_used = _select_used_tables(from_lst, after_read_lst, table_names)
 
-	# print(len(after_read_lst))
+	print(len(after_read_lst))
 	# print(from_lst[0])
-
-	table = _from(from_lst, after_read_lst_used, where_lst)
+	print(from_lst)
+	# print(after_read_lst_used)
+	table = _from(from_lst, after_read_lst_used, where_lst, rename_list)
+	print("Cetasian Product finished")
 
 	result = _select_and_where(table, where_lst, select_lst)
 
