@@ -29,10 +29,10 @@ def _parse():
 	condition = input("WHERE ")
 
 	attrib = attrib.replace(" ", "")
-	table = table.replace(" ", "")
 
 	list_select = []
 	list_from = []
+	rename_list = []
 	list_where = condition
 
 	if attrib == "*":
@@ -43,17 +43,34 @@ def _parse():
 
 	else:
 		list_select = attrib.split(",")
-
 	if table == "":
 		return
 
 	elif table.find(",") == -1:
-		list_from.append(table)
+		temp = table.split(" ")
+		print(temp)
+		if len(temp) == 2: 
+			list_from.append(temp[0])
+			rename_list.append(temp[1])
+		else:
+			list_from.append(temp[0])
+			rename_list.append(None)
 
 	else:
-		list_from = table.split(",")
+		ttemp = table.split(", ")
+		print(ttemp)
+		for i in ttemp: 
+			temp = i.split(" ")
+			if len(temp) == 2: 
+				list_from.append(temp[0])
+				rename_list.append(temp[1])
+			else:
+				list_from.append(temp[0])
+				rename_list.append(None)
 	
-	return list_select, list_from, list_where 
+	print(list_from)
+	print(rename_list)
+	return list_select, list_from, list_where, rename_list
 
 def _get_table_list():
 	out = []
@@ -83,6 +100,17 @@ def _select_used_tables(from_lst, after_read_lst, table_names):
 	return out
 
 def _from(table_lst, after_read_lst, args, rename_list):
+
+	if len(after_read_lst) == 1:
+		table1 = after_read_lst[0]
+		if rename_list[0] is not None: 
+			table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
+		return table1
+
+	for i in range(len(after_read_lst)):
+		if rename_list[i] is not None: 
+			after_read_lst[i].columns = [rename_list[i] +'.' + s for s in list(after_read_lst[i].columns.values)]
+
 	conds = _where_parse(args)
 	join_conds = []
 	#find join conditions
@@ -92,19 +120,6 @@ def _from(table_lst, after_read_lst, args, rename_list):
 				if conds[i+1] in table_iter:
 					join_conds.append([conds[i-1], conds[i+1]])
 
-	attr_all = []
-	for s in after_read_lst:
-		for i in list(s.columns.values): 
-			attr_all.append(i)
-
-	if len(after_read_lst) == 1:
-
-		table1 = after_read_lst[0]
-		#if rename_list[0] is not None: 
-			#table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
-		return table1
-
-	prod = after_read_lst[0]
 	while(len(join_conds) > 0):
 		#cond join
 		col1, col2 = join_conds.pop()
@@ -124,12 +139,16 @@ def _from(table_lst, after_read_lst, args, rename_list):
 		after_read_lst.append(prod)
 	#cartesian product
 	prod = after_read_lst[0]
+
+
 	for i in range(1, len(after_read_lst)):
+
 		prod['key'] = 1
 		after_read_lst[i]['key'] = 1
 		prod = pd.merge(prod,after_read_lst[i], on = 'key' )
 		prod.drop('key', 1, inplace = True)
-
+	print(len(after_read_lst))
+	print(prod)
 	return prod	
 
 	#if rename_list[0] is not None: 
@@ -303,12 +322,12 @@ def operators(table, op1, op2, op):
 		return table[op1] < op2
 	elif op == ">":
 		return table[op1] > op2
-	elif op == ">="
+	elif op == ">=":
 		return table[op1] >= op2
 	elif op == "<=":
 		return table[op1] <= op2
-	elif op == "<>"
-		return table[op1] <> op2
+	elif op == "<>":
+		return table[op1] != op2
 	elif op == "LIKE":
 		return operatorLIKE(table, op1, op2)
 
@@ -319,13 +338,13 @@ after_read_lst, table_names = _read_dataset(data_table_lst)
 
 while(1):
 
-	select_lst, from_lst, where_lst = _parse()
+	select_lst, from_lst, where_lst, rename_list = _parse()
 
 	start_time = time.time()
 
 	after_read_lst_used = _select_used_tables(from_lst, after_read_lst, table_names)
 
-	table = _from(from_lst, after_read_lst_used, where_lst, [])
+	table = _from(from_lst, after_read_lst_used, where_lst, rename_list)
 	result = _select_and_where(table, where_lst, select_lst)
 
 	duration = time.time() - start_time
