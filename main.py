@@ -303,6 +303,12 @@ def operators(table, op1, op2, op):
 		return table[op1] < op2
 	elif op == ">":
 		return table[op1] > op2
+	elif op == ">="
+		return table[op1] >= op2
+	elif op == "<=":
+		return table[op1] <= op2
+	elif op == "<>"
+		return table[op1] <> op2
 	elif op == "LIKE":
 		return operatorLIKE(table, op1, op2)
 
