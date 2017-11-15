@@ -10,6 +10,9 @@ import sys
 from pandas import DataFrame, read_csv
 import re
 import time 
+import os
+path = './database/'
+
 pd.options.mode.chained_assignment = None
 
 def _welcome():
@@ -52,15 +55,32 @@ def _parse():
 	
 	return list_select, list_from, list_where 
 
+def _get_table_list():
+	out = []
+	for fn in os.listdir(path):
+		out.append(fn)
+		return out
+
 def _read_dataset(table_lst):
 	real_table_list = []
-
+	table_names = []
 	for item in table_lst:
-		file = item + '.csv'
+		file = path + item
 		table = pd.read_csv(file)
+		table_names.append(item.split('.')[0])
 		real_table_list.append(table)
+	return real_table_list, table_names
 
-	return real_table_list 
+def _select_used_tables(from_lst, after_read_lst, table_names):
+	out = []
+	for item in from_lst:
+		count = 0		
+		for df in table_names:
+			if(item == df):
+				out.append(after_read_lst[count])
+				break
+			count += 1
+	return out
 
 def _from(table_lst, after_read_lst, args):
 	conds = _where_parse(args)
@@ -285,22 +305,27 @@ def operators(table, op1, op2, op):
 
 
 
-select_lst, from_lst, where_lst = _parse()
+data_table_lst = _get_table_list()
+after_read_lst, table_names = _read_dataset(data_table_lst)
 
-after_read_lst = _read_dataset(from_lst)
+while(1):
 
-start_time = time.time()
+	select_lst, from_lst, where_lst = _parse()
 
+	start_time = time.time()
 
-table = _from(from_lst, after_read_lst, where_lst)
+	after_read_lst_used = _select_used_tables(from_lst, after_read_lst, table_names)
 
-result = _select_and_where(table, where_lst, select_lst)
+	# print(len(after_read_lst))
+	# print(from_lst[0])
 
-duration = time.time() - start_time
+	table = _from(from_lst, after_read_lst_used, where_lst)
 
-print(result)
+	result = _select_and_where(table, where_lst, select_lst)
 
-print("Duration", duration)
+	duration = time.time() - start_time
+	print(result)
+	print("Duration", duration)
 
 #_select_and_where()
 #print(table)
