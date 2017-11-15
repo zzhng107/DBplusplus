@@ -10,7 +10,7 @@ import sys
 from pandas import DataFrame, read_csv
 import re
 import time 
-
+pd.options.mode.chained_assignment = None
 
 def _welcome():
 	print('********************************************')
@@ -30,42 +30,26 @@ def _parse():
 
 	list_select = []
 	list_from = []
-	#list_where = ""
 	list_where = condition
 
-	# select all 
 	if attrib == "*":
-		#print("select all")
 		list_select.append("*")
 
-	# select only one attribute
 	elif attrib.find(",") == -1:
-		#print("only one attrib")
 		list_select.append(attrib)
 
-	# select more than one attrib
 	else:
-		#print("multiple attrib")
 		list_select = attrib.split(",")
 
-	# from none table
 	if table == "":
-		#print("ERROR: from clause cannot be empty")
 		return
 
-	# from one table
 	elif table.find(",") == -1:
-		#print("only one table")
 		list_from.append(table)
 
-	# from more than one table
 	else:
-		#print("multiple table")
 		list_from = table.split(",")
 	
-	#print("SELECT: ", _select)
-	#print("FROM: ", _from)
-
 	return list_select, list_from, list_where 
 
 def _read_dataset(table_lst):
@@ -78,36 +62,51 @@ def _read_dataset(table_lst):
 
 	return real_table_list 
 
-def _from(table_lst, after_read_lst):
+def _from(table_lst, after_read_lst, args):
+	conds = _where_parse(args)
+
+	attr_all = []
+	for s in after_read_lst:
+		for i in list(s.columns.values): 
+			attr_all.append(i)
 
 	if len(table_lst) == 1:
-		#file1 = table_lst[0] + '.csv'
-		#table1 = pd.read_csv(file1)
+
 		table1 = after_read_lst[0]
-		table1.columns = [table_lst[0] +'.' + s for s in list(table1.columns.values)]
 		return table1
 
-	#file1 = table_lst[0] + '.csv'
-	#table1 = pd.read_csv(file1)
-	table1 = after_read_lst[0]
-	table1.columns = [table_lst[0] +'.' + s for s in list(table1.columns.values)]
 
-	#file2 = table_lst[1] + '.csv'
-	#table2 = pd.read_csv(file2)
+	table1 = after_read_lst[0]
+
+	
+	attr1 = list(table1.columns.values)
+	for i in range(len(conds)):
+
+		if ((conds[i][0] in attr1) and (conds[i][2] in attr1)) or ((conds[i][0] in attr1) and (conds[i][2] not in attr_all)):
+			table1 = table1[generate_result(table1, [conds[i]])]
+
 	table2 = after_read_lst[1]
-	table2.columns = [table_lst[1] +'.' + s for s in list(table2.columns.values)]
+	
+	attr2 = list(table2.columns.values)
+	for i in range(len(conds)):
+		if ((conds[i][0] in attr2) and (conds[i][2] in attr2)) or ((conds[i][0] in attr2) and (conds[i][2] not in attr_all)):
+			table2 = table2[generate_result(table2, [conds[i]])]
+	
 
 	table1['key'] = 0
 	table2['key'] = 0
 
 	prod = pd.merge(table1, table2, on='key')
+
 	prod.drop('key', 1, inplace=True)
 
 	for i in range(len(table_lst)-2):
-		#file = item + '.csv'
-		#table = pd.read_csv(file)
+
 		table = after_read_lst[i+2]
-		table.columns = [table_lst[i+2] +'.' + s for s in list(table.columns.values)]
+		attr = list(table.columns.values)
+		for i in range(len(conds)):
+			if ((conds[i][0] in attr1) and (conds[i][2] in attr)) or ((conds[i][0] in attr) and (conds[i][2] not in attr_all)):
+				table = table[generate_result(table, [conds[i]])]
 
 		prod['key'] = 0
 		table['key'] = 0
@@ -118,9 +117,6 @@ def _from(table_lst, after_read_lst):
 	return prod 
 
 """
-TODO
-"""
-
 def operatorLIKE(table, substring):
 	ret = []
 	for i in range(len(data)):
@@ -152,27 +148,41 @@ def operatorLIKE(table, substring):
 			print("Invalid arguments, please specify qualifiers")
 			return []
 	return ret 
+"""
 
-def _where_parse(args):
-	conds = [p for p in re.split("( |\\\".*?\\\"|'.*?')" , args) if p.strip()]
-	i,j = 0, 0
-	ret = []
-	while(len(conds)>0):
-		i = min(conds.index("AND") if "AND" in conds else 99999, conds.index("OR") if "OR" in conds else 99999, conds.index("NOT") if "NOT" in conds else 99999)
-		if(i != 99999):
-			cond = conds[i-3:i]
-			cond.append(conds[i])
-			conds = conds[i+1:]			
-		else:
-			cond = conds
-			conds = []
-		ret.append(cond)
-	return ret	
+def operatorLIKE(op, pattern):
+	# %or% have "or" in any position
+	if pattern[0] == '%' and pattern[-1] == '%':
+		return op.find(pattern) >= 0
+	# %a start with a
+	elif pattern[0] != '%' and pattern[-1] == '%':
+		return op.startswith(pattern[:-1])
+	# %a end with a
+	elif pattern[0] == '%' and pattern[-1] != '%':
+		return op.endswith(pattern[1:])
+	# '_r% have "r" in the second position
+	elif pattern[0] == '_' and pattern[-1] == '%':
+		return op.find(pattern) == 1
+	# '%r_ have "r" in the last second position
+	elif pattern[0] == '%' and pattern[-1] == '_':
+		return op.find(pattern) == -1 - len(pattern[1:-1])
+	# '_r_ have "r" in the middle with 2 single char at the end
+	elif pattern[0] == '_' and pattern[-1] == '_':
+		return op[1:-1] == pattern[1:-1]
 
+
+
+"""
 def _select_and_where(table, args, select_lst):
 	conds = _where_parse(args)
+	print(conds)
 	new =  table[generate_result(table, conds)]
-	return new[select_lst]
+
+	if (select_lst[0] == "*"):
+		return new
+	else:
+		return new[select_lst]
+"""
 
 def generate_result(table, conds):
 	next_logic_op = ""
@@ -190,6 +200,73 @@ def generate_result(table, conds):
 			next_logic_op = cond[3]
 	return ret
 
+def _where_parse(args):
+	conds = [p for p in re.split("( |\\\".*?\\\"|'.*?')" , args) if p.strip()]
+	return conds	
+
+def _select_and_where(table, args, select_lst):
+	conds = _where_parse(args)
+	ops = generate_boolean(table, conds)
+	new =  table[evaluate_boolean(ops)]
+
+	if (select_lst[0] == "*"):
+		return new
+	else:
+		return new[select_lst]
+def generate_boolean(table, conds):
+	i = 0;
+	boolean_ops = []
+	while i < len(conds):
+		#=, >, <, <>, >=, <=
+		if conds[i] == '=' or conds[i] == '>' or conds[i] == '<' or conds[i] == '<>' or conds[i] == '>=' or conds[i] == '<=' or conds[i] == 'LIKE':
+			t = operators(table, conds[i-1], conds[i+1], conds[i])
+			boolean_ops.append(t)
+		elif conds[i] == '(' or conds[i] == ')' or conds[i] == 'AND' or conds[i] == 'OR' or conds[i] == 'NOT':
+			boolean_ops.append(conds[i])
+		i += 1	
+	return boolean_ops
+
+def evaluate_boolean(ops):
+	stack = []
+	for i in range(len(ops)):
+		if isinstance(ops[i], str) and ops[i] == '(':
+			stack.append(i) 
+	i = 0
+
+	while(i< len(ops)):
+		if (len(stack) == 0):
+			return helper(ops)
+		if isinstance(ops[i], str) and ops[i] == ')':
+
+			starting_idx = stack.pop()
+			t = helper(ops[starting_idx + 1: i])
+			temp = ops[0:starting_idx]
+			temp.append(t)
+			temp += ops[i+1:]
+			ops = temp
+			i = starting_idx
+		i += 1
+	return helper(ops)	
+
+
+def helper(ops):
+	i = 0
+	while(len(ops) > 1):
+		if isinstance(ops[i], str) and ops[i] == 'AND':
+			ops[i-1] = ops[i-1] & ops[i+1]
+			ops.pop(i+1)
+			ops.pop(i)
+			i -= 1
+		elif isinstance(ops[i], str) and ops[i] == 'OR':
+			ops[i-1] = ops[i-1] | ops[i+1]
+			ops.pop(i+1)
+			ops.pop(i)
+			i -= 1
+		elif isinstance(ops[i], str) and ops[i] == 'NOT':
+			ops[i] = ~ops[i+1]
+			ops.pop(i+1)
+		i += 1
+	return ops[0]
 
 def operators(table, op1, op2, op):
 	if(op2.replace('.','',1).isdigit()):
@@ -204,7 +281,7 @@ def operators(table, op1, op2, op):
 	elif op == ">":
 		return table[op1] > op2
 	elif op == "LIKE":
-		return operatorLIKE(table, op2)
+		return operatorLIKE(op1, op2)
 
 
 
@@ -214,7 +291,8 @@ after_read_lst = _read_dataset(from_lst)
 
 start_time = time.time()
 
-table = _from(from_lst, after_read_lst)
+
+table = _from(from_lst, after_read_lst, where_lst)
 
 result = _select_and_where(table, where_lst, select_lst)
 
