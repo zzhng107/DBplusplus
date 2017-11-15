@@ -48,7 +48,6 @@ def _parse():
 
 
 
-	print("Fuck")
 	if table == "":
 		return
 
@@ -145,15 +144,16 @@ def _from(table_lst, after_read_lst, args, rename_list):
 
 	prod.drop('key', 1, inplace=True)
 
-	for i in range(len(table_lst)-2):
-
-		table = after_read_lst[i+2]
+	for j in range(len(table_lst)-2):
+		print(len(table_lst)-2)
+		table = after_read_lst[j+2]
 		attr = list(table.columns.values)
 		for i in range(len(conds)):
 			if ((conds[i][0] in attr1) and (conds[i][2] in attr)) or ((conds[i][0] in attr) and (conds[i][2] not in attr_all)):
 				table = table[generate_result(table, [conds[i]])]
-			if rename_list[i+2] is not None: 
-				table.columns = [rename_list[i+2] +'.' + s for s in list(table.columns.values)]
+
+		if rename_list[j+2] is not None: 
+			table.columns = [rename_list[j+2] +'.' + s for s in list(table.columns.values)]
 
 		prod['key'] = 0
 		table['key'] = 0
