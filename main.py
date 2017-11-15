@@ -100,8 +100,8 @@ def _from(table_lst, after_read_lst, args, rename_list):
 	if len(after_read_lst) == 1:
 
 		table1 = after_read_lst[0]
-		if rename_list[0] is not None: 
-			table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
+		#if rename_list[0] is not None: 
+			#table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
 		return table1
 
 	prod = after_read_lst[0]
