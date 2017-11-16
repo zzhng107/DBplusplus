@@ -48,7 +48,7 @@ def _parse():
 
 	elif table.find(",") == -1:
 		temp = table.split(" ")
-		print(temp)
+		#print(temp)
 		if len(temp) == 2: 
 			list_from.append(temp[0])
 			rename_list.append(temp[1])
@@ -58,7 +58,7 @@ def _parse():
 
 	else:
 		ttemp = table.split(", ")
-		print(ttemp)
+		#print(ttemp)
 		for i in ttemp: 
 			temp = i.split(" ")
 			if len(temp) == 2: 
@@ -68,8 +68,8 @@ def _parse():
 				list_from.append(temp[0])
 				rename_list.append(None)
 	
-	print(list_from)
-	print(rename_list)
+	#print(list_from)
+	#print(rename_list)
 	return list_select, list_from, list_where, rename_list
 
 def _get_table_list():
@@ -147,8 +147,8 @@ def _from(table_lst, after_read_lst, args, rename_list):
 		after_read_lst[i]['key'] = 1
 		prod = pd.merge(prod,after_read_lst[i], on = 'key' )
 		prod.drop('key', 1, inplace = True)
-	print(len(after_read_lst))
-	print(prod)
+	#print(len(after_read_lst))
+	#print(prod)
 	return prod	
 
 	#if rename_list[0] is not None: 
