@@ -48,7 +48,6 @@ def _parse():
 
 	elif table.find(",") == -1:
 		temp = table.split(" ")
-		#print(temp)
 		if len(temp) == 2: 
 			list_from.append(temp[0])
 			rename_list.append(temp[1])
@@ -58,7 +57,6 @@ def _parse():
 
 	else:
 		ttemp = table.split(", ")
-		#print(ttemp)
 		for i in ttemp: 
 			temp = i.split(" ")
 			if len(temp) == 2: 
@@ -68,8 +66,6 @@ def _parse():
 				list_from.append(temp[0])
 				rename_list.append(None)
 	
-	#print(list_from)
-	#print(rename_list)
 	return list_select, list_from, list_where, rename_list
 
 def _get_table_list():
@@ -90,11 +86,19 @@ def _read_dataset(table_lst):
 
 def _select_used_tables(from_lst, after_read_lst, table_names):
 	out = []
+	readed = []
+	index = []
 	for item in from_lst:
 		count = 0		
 		for df in table_names:
 			if(item == df):
+				if item in readed:
+					table = after_read_lst[index[readed.index(item)]].copy(deep = True)
+					out.append(table)
+					break
 				out.append(after_read_lst[count])
+				index.append(count)
+				readed.append(item)
 				break
 			count += 1
 	return out
@@ -142,13 +146,12 @@ def _from(table_lst, after_read_lst, args, rename_list):
 
 
 	for i in range(1, len(after_read_lst)):
-
 		prod['key'] = 1
 		after_read_lst[i]['key'] = 1
 		prod = pd.merge(prod,after_read_lst[i], on = 'key' )
 		prod.drop('key', 1, inplace = True)
-	#print(len(after_read_lst))
-	#print(prod)
+
+
 	return prod	
 
 	#if rename_list[0] is not None: 
@@ -252,6 +255,7 @@ def _select_and_where(table, args, select_lst):
 	if (select_lst[0] == "*"):
 		return new
 	else:
+		print(table.columns)
 		return new[select_lst]
 def generate_boolean(table, conds):
 	i = 0;
@@ -314,20 +318,18 @@ def operators(table, op1, op2, op):
 	else:
 		op2 = op2.replace("\"","")
 
-	if op2 in table.columns:
-		return table[op1] == table[op2]
-	elif op == "=":
-		return table[op1] == op2
+	if op == "=":
+		return table[op1] == (table[op2] if op2 in table.columns else op2)
 	elif op == "<":
-		return table[op1] < op2
+		return table[op1] < (table[op2] if op2 in table.columns else op2)
 	elif op == ">":
-		return table[op1] > op2
+		return table[op1] > (table[op2] if op2 in table.columns else op2)
 	elif op == ">=":
-		return table[op1] >= op2
+		return table[op1] >= (table[op2] if op2 in table.columns else op2)
 	elif op == "<=":
-		return table[op1] <= op2
+		return table[op1] <= (table[op2] if op2 in table.columns else op2)
 	elif op == "<>":
-		return table[op1] != op2
+		return table[op1] != (table[op2] if op2 in table.columns else op2)
 	elif op == "LIKE":
 		return operatorLIKE(table, op1, op2)
 
