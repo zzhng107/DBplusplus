@@ -11,7 +11,6 @@ from pandas import DataFrame, read_csv
 import re
 import time 
 import os
-import numpy as np
 path = './database/'
 
 pd.options.mode.chained_assignment = None
@@ -81,7 +80,6 @@ def _read_dataset(table_lst):
 	for item in table_lst:
 		file = path + item
 		table = pd.read_csv(file)
-		table = table.replace(np.nan, np.inf)
 		table_names.append(item.split('.')[0])
 		real_table_list.append(table)
 	return real_table_list, table_names
@@ -135,7 +133,7 @@ def _from(table_lst, after_read_lst, args, rename_list):
 			if col2 in after_read_lst[i].columns:
 				t2 = i
 
-		prod = pd.merge(after_read_lst[t1], after_read_lst[t2], left_on = col1, right_on = col2, how = "outer")
+		prod = pd.merge(after_read_lst[t1], after_read_lst[t2], left_on = col1, right_on = col2)
 		if t1 > t2:
 			after_read_lst.pop(t1)
 			after_read_lst.pop(t2)
@@ -257,7 +255,9 @@ def _select_and_where(table, args, select_lst):
 	if (select_lst[0] == "*"):
 		return new
 	else:
+		print(table.columns)
 		return new[select_lst]
+
 def generate_boolean(table, conds):
 	i = 0;
 	boolean_ops = []
@@ -318,42 +318,22 @@ def operators(table, op1, op2, op):
 		op2 = float(op2) 
 	else:
 		op2 = op2.replace("\"","")
-	
-	temp = 0
-	flag = False
-	if '+' in str(op2) or '-' in str(op2) or '*' in str(op2) or '/' in str(op2) :
-		for i in ['+','-','*','/']:
-			if i in op2:
-				flag = True
-				[n1, n2] = op2.split(i)
-				if i == '+': 
-					temp = table[n1] + float(n2) 
-				elif i == '-':
-					#print(table[n1])
-					temp = table[n1] - float(n2)
-				elif i == '*':
-					temp = table[n1] * float(n2)
-				elif i == '/':
-					temp = table[n1] / float(n2)
-			
 
-	
 	if op == "=":
-		return table[op1] == (temp if flag else (table[op2] if op2 in table.columns else op2))
-	elif op == "<": 
-		return table[op1] < (temp if flag else (table[op2] if op2 in table.columns else op2))
+		return table[op1] == (table[op2] if op2 in table.columns else op2)
+	elif op == "<":
+		return table[op1] < (table[op2] if op2 in table.columns else op2)
 	elif op == ">":
-		return table[op1] > (temp if flag else (table[op2] if op2 in table.columns else op2))
+		return table[op1] > (table[op2] if op2 in table.columns else op2)
 	elif op == ">=":
-		return table[op1] >= (temp if flag else (table[op2] if op2 in table.columns else op2))
+		return table[op1] >= (table[op2] if op2 in table.columns else op2)
 	elif op == "<=":
-		return table[op1] <= (temp if flag else (table[op2] if op2 in table.columns else op2))
+		return table[op1] <= (table[op2] if op2 in table.columns else op2)
 	elif op == "<>":
-		return table[op1] != (temp if flag else (table[op2] if op2 in table.columns else op2))
+		return table[op1] != (table[op2] if op2 in table.columns else op2)
 	elif op == "LIKE":
 		return operatorLIKE(table, op1, op2)
 
-	flag = False
 
 
 data_table_lst = _get_table_list()
