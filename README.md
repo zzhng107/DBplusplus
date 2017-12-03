@@ -10,12 +10,18 @@ This file introduces how to compile and run the program for project track two.
 To compile and run: python3 main.py
 
 To use: 
-********************************************
+
+\********************************************
+
 A DB++ Group Product.
-********************************************
-SELECT <some attributes> <enter>
-FROM <some tables> <enter>
-WHERE <some conditions> <enter>
+
+\********************************************
+
+SELECT \<some attributes> \<enter>
+
+FROM \<some tables> \<enter>
+
+WHERE \<some conditions> \<enter>
 
 Note that all of our .csv tables should be stored into the database folder, so 
 that at the beginning of our program, we can read and store all the .csv files 
