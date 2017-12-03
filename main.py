@@ -65,9 +65,15 @@ def _parse():
 				rename_list.append(temp[1])
 			else:
 				list_from.append(temp[0])
+		
 				rename_list.append(None)
-	
-	return list_select, list_from, list_where, rename_list
+	distinct = False
+	if "DISTINCT" in list_select:
+		distinct = True
+		list_select.remove("DISTINCT")
+
+	return list_select, list_from, list_where, rename_list, distinct
+
 
 def _get_table_list():
 	out = []
@@ -81,7 +87,7 @@ def _read_dataset(table_lst):
 	for item in table_lst:
 		file = path + item
 		table = pd.read_csv(file)
-		table = table.replace(np.nan, np.inf)
+		table = table.replace(np.nan, 9999)
 		table_names.append(item.split('.')[0])
 		real_table_list.append(table)
 	return real_table_list, table_names
@@ -105,6 +111,32 @@ def _select_used_tables(from_lst, after_read_lst, table_names):
 			count += 1
 	return out
 
+def preprocess(original_table_list, conds):
+	ret_list = []
+	used_index = []
+	flag = False
+	for i in range(len(conds)):
+		flag = False
+		for j in range(len(ret_list)):
+			if conds[i][0] in ret_list[j]:
+				ret_list[j] = ret_list[j][operators(ret_list[j], conds[i][0], conds[i][2], conds[i][1])]
+				flag = True
+
+		if not flag:
+			for j in range(len(original_table_list)):
+				if conds[i][0] in original_table_list[j]:
+					temp = original_table_list[j][operators(original_table_list[j], conds[i][0], conds[i][2], conds[i][1])]
+					ret_list.append(temp)
+					used_index.append(j)
+
+	for i in range(len(original_table_list)):
+		if i not in used_index:
+			ret_list.append(original_table_list[i])
+	
+	return ret_list
+
+
+
 def _from(table_lst, after_read_lst, args, rename_list):
 
 	if len(after_read_lst) == 1:
@@ -118,78 +150,55 @@ def _from(table_lst, after_read_lst, args, rename_list):
 			after_read_lst[i].columns = [rename_list[i] +'.' + s for s in list(after_read_lst[i].columns.values)]
 
 	conds = _where_parse(args)
+	#preprocess the tables
+	
+	all_table_col_names = []
+	for table in after_read_lst:
+		all_table_col_names.extend(table.columns.values)
+
 	join_conds = []
-	#find join conditions
+	preprocess_conds = []
+	#find join conditions and preprocess conditions
 	for i in range(len(conds)):
-		if conds[i] == '=':
-			for table_iter in after_read_lst:
-				if conds[i+1] in table_iter:
+		if conds[i] == '=' or conds[i] == '>' or conds[i] == '<' or conds[i] == '>=' or conds[i] == '<=' or conds[i] == '<>':
+			if conds[i+1] in all_table_col_names:
+				if conds[i] == "=":
 					join_conds.append([conds[i-1], conds[i+1]])
+			else:
+				preprocess_conds.append([conds[i-1], conds[i], conds[i+1]])
+
+
+	preprocessd_tables = preprocess(after_read_lst, preprocess_conds)
+
 
 	while(len(join_conds) > 0):
 		#cond join
 		col1, col2 = join_conds.pop()
-		for i in range(len(after_read_lst)):
-			if col1 in after_read_lst[i].columns:
+		for i in range(len(preprocessd_tables)):
+			if col1 in preprocessd_tables[i].columns:
 				t1 = i
-			if col2 in after_read_lst[i].columns:
+			if col2 in preprocessd_tables[i].columns:
 				t2 = i
 
-		prod = pd.merge(after_read_lst[t1], after_read_lst[t2], left_on = col1, right_on = col2, how = "outer")
+		prod = pd.merge(preprocessd_tables[t1], preprocessd_tables[t2], left_on = col1, right_on = col2)
 		if t1 > t2:
-			after_read_lst.pop(t1)
-			after_read_lst.pop(t2)
+			preprocessd_tables.pop(t1)
+			preprocessd_tables.pop(t2)
 		else:
-			after_read_lst.pop(t2)
-			after_read_lst.pop(t1)
-		after_read_lst.append(prod)
+			preprocessd_tables.pop(t2)
+			preprocessd_tables.pop(t1)
+		preprocessd_tables.append(prod)
 	#cartesian product
-	prod = after_read_lst[0]
+	prod = preprocessd_tables[0]
 
 
-	for i in range(1, len(after_read_lst)):
+	for i in range(1, len(preprocessd_tables)):
 		prod['key'] = 1
-		after_read_lst[i]['key'] = 1
-		prod = pd.merge(prod,after_read_lst[i], on = 'key' )
+		preprocessd_tables[i]['key'] = 1
+		prod = pd.merge(prod,preprocessd_tables[i], on = 'key' )
 		prod.drop('key', 1, inplace = True)
 
-
 	return prod	
-
-	#if rename_list[0] is not None: 
-	#	table1.columns = [rename_list[0] +'.' + s for s in list(table1.columns.values)]
-
-	#table2 = after_read_lst[1]
-	
-	#attr2 = list(table2.columns.values)
-	#for i in range(len(conds)):
-	#	if ((conds[i][0] in attr2) and (conds[i][2] in attr2)) or ((conds[i][0] in attr2) and (conds[i][2] not in attr_all)):
-	#		table2 = table2[generate_result(table2, [conds[i]])]
-	#if rename_list[1] is not None: 
-	#	table2.columns = [rename_list[1] +'.' + s for s in list(table2.columns.values)]	
-
-	#table1['key'] = 0
-	#table2['key'] = 0
-
-	#prod = pd.merge(table1, table2, on='key')
-
-	#prod.drop('key', 1, inplace=True)
-
-	#for i in range(len(table_lst)-2):
-
-	#	table = after_read_lst[i+2]
-	#	attr = list(table.columns.values)
-	#	for i in range(len(conds)):
-	#		if ((conds[i][0] in attr1) and (conds[i][2] in attr)) or ((conds[i][0] in attr) and (conds[i][2] not in attr_all)):
-	#			table = table[generate_result(table, [conds[i]])]
-	#		if rename_list[i+2] is not None: 
-	#			table.columns = [rename_list[i+2] +'.' + s for s in list(table.columns.values)]
-
-	#	prod['key'] = 0
-	#	table['key'] = 0
-
-	#	prod = pd.merge(prod, table, on='key')
-	#	prod.drop('key', 1, inplace=True)
 
 
 def operatorLIKE(table,col, substring):
@@ -215,18 +224,6 @@ def operatorLIKE(table,col, substring):
 	return ret 
 
 
-"""
-def _select_and_where(table, args, select_lst):
-	conds = _where_parse(args)
-	print(conds)
-	new =  table[generate_result(table, conds)]
-
-	if (select_lst[0] == "*"):
-		return new
-	else:
-		return new[select_lst]
-"""
-
 def generate_result(table, conds):
 	next_logic_op = ""
 	ret = operators(table, conds[0][0], conds[0][2], conds[0][1])
@@ -247,17 +244,21 @@ def _where_parse(args):
 	conds = [p for p in re.split("( |\\\".*?\\\"|'.*?')" , args) if p.strip()]
 	return conds	
 
-def _select_and_where(table, args, select_lst):
+def _select_and_where(table, args, select_lst, distinct):
 	if len(args) > 0:
 		conds = _where_parse(args)
 		ops = generate_boolean(table, conds)
 		new =  table[evaluate_boolean(ops)]
 	else:
 		new = table
+
 	if (select_lst[0] == "*"):
 		return new
 	else:
+		if(distinct == True):
+			return new[select_lst].drop_duplicates()
 		return new[select_lst]
+
 def generate_boolean(table, conds):
 	i = 0;
 	boolean_ops = []
@@ -355,32 +356,32 @@ def operators(table, op1, op2, op):
 
 	flag = False
 
+def undo_rename(table_list):
+	for i in range(len(table_list)):
+		table_list[i].columns = [s.split(".")[-1] for s in list(table_list[i].columns.values)]
+
 
 data_table_lst = _get_table_list()
 after_read_lst, table_names = _read_dataset(data_table_lst)
 
+
 while(1):
 
-	select_lst, from_lst, where_lst, rename_list = _parse()
+	select_lst, from_lst, where_lst, rename_list, distinct = _parse()
 
 	start_time = time.time()
 
 	after_read_lst_used = _select_used_tables(from_lst, after_read_lst, table_names)
 
 	table = _from(from_lst, after_read_lst_used, where_lst, rename_list)
-	result = _select_and_where(table, where_lst, select_lst)
+	result = _select_and_where(table, where_lst, select_lst, distinct)
+	
 
 	duration = time.time() - start_time
 	print(result)
 	print("Duration", duration)
+	undo_rename(after_read_lst_used)
 
-#_select_and_where()
-#print(table)
-#print(from_lst)
-#lst = ['Enrolls', 'Students', 'Beers']
-#table = _from(lst)
-#print(table)
-#print(table[['Enrolls.id', 'Beers.Price']])
 
 
 
