@@ -118,13 +118,13 @@ def preprocess(original_table_list, conds):
 	for i in range(len(conds)):
 		flag = False
 		for j in range(len(ret_list)):
-			if conds[i][0] in ret_list[j]:
+			if conds[i][0] in ret_list[j] and conds[i][0] == "AND":
 				ret_list[j] = ret_list[j][operators(ret_list[j], conds[i][0], conds[i][2], conds[i][1])]
 				flag = True
 
 		if not flag:
 			for j in range(len(original_table_list)):
-				if conds[i][0] in original_table_list[j]:
+				if conds[i][0] in original_table_list[j] and conds[i][0] == "AND":
 					temp = original_table_list[j][operators(original_table_list[j], conds[i][0], conds[i][2], conds[i][1])]
 					ret_list.append(temp)
 					used_index.append(j)
@@ -165,7 +165,12 @@ def _from(table_lst, after_read_lst, args, rename_list):
 				if conds[i] == "=":
 					join_conds.append([conds[i-1], conds[i+1]])
 			else:
-				preprocess_conds.append([conds[i-1], conds[i], conds[i+1]])
+				temp = [conds[i-1], conds[i], conds[i+1]]
+				if i < 2 or conds[i-2] == "AND":
+					temp.append("AND")
+				else:
+					temp.append(conds[i-2])
+				preprocess_conds.append(temp)
 
 
 	preprocessd_tables = preprocess(after_read_lst, preprocess_conds)
