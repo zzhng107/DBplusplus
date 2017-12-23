@@ -1,6 +1,8 @@
 ## Info
 Updated Version Support Indexing. 
+
 Updated Time: Dec 23 2017
+
 Members: Zhichun Wan, Zhiwei Zhang, Lihao Yu, and Rui Lan 
 
 This file introduces how to compile and run the program for project track two. 
