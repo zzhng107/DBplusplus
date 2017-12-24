@@ -273,7 +273,7 @@ def _from(table_lst, args, rename_list):
 		if conds[i] == '=' or conds[i] == '>' or conds[i] == '<' or conds[i] == '>=' or conds[i] == '<=' or conds[i] == '<>':
 			if conds[i+1] in all_table_col_names:
 				if conds[i] == "=":
-					join_conds.append([conds[i-1], conds[i+1]])p
+					join_conds.append([conds[i-1], conds[i+1]])
 			else:
 				temp = [conds[i-1], conds[i], conds[i+1]]
 				if i < 2 or conds[i-2] == "AND":
